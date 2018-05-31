@@ -1,4 +1,2 @@
 This is an Auto Updater en Qt
-
-& simple
-
+A new branch "feature1" and simple
