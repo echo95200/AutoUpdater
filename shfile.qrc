@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/shFile">
+        <file>Resources/test.sh</file>
+    </qresource>
+</RCC>
