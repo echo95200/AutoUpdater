@@ -1,7 +1,1 @@
-Git is a version control system.
-31/05/2018
-
-Git is a good free software
-
-Git has a mutable index called stage.
-Git tracks changes of files.
+This is an Auto Updater en Qt
