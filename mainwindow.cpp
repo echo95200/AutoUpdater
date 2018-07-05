@@ -140,7 +140,7 @@ void MainWindow::replyFinished(QNetworkReply *)
         ui->textEdit->append("Download finished...");
 
         //Start the process of update
-        this->updateNewVersion();
+        //this->updateNewVersion();
     }
     else
     {
@@ -319,10 +319,10 @@ void MainWindow::on_pushButtonUpdate_clicked()
     ui->pushButtonClose->setEnabled(false);
 
     this->downloadPackage();
-    ui->textEdit->append("Backup begins...");
-    this->backupCurrentVersion();
-    ui->textEdit->append("Backup ends...");
-    ui->pushButtonClose->setEnabled(true);
+//    ui->textEdit->append("Backup begins...");
+//    this->backupCurrentVersion();
+//    ui->textEdit->append("Backup ends...");
+//    ui->pushButtonClose->setEnabled(true);
 
 
 //    updateFile = QCoreApplication::applicationDirPath() + QDir::separator() + "update1.2.sh";
