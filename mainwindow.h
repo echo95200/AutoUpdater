@@ -20,7 +20,6 @@
 #include <QGridLayout>
 #include <QtSql/QSqlDatabase>
 #include <QSqlQuery>
-#include <QDateTime>
 
 namespace Ui {
 class MainWindow;
