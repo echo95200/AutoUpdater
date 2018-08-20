@@ -23,11 +23,21 @@
 #include <QByteArray>
 #include <QCryptographicHash>
 
+//Initialization of the QLib7z
+#include "init.h"
+#include "lib7z_facade.h"
+
 class AutoUpdater : public QWidget
 {
     Q_OBJECT
 public:
     explicit AutoUpdater(QWidget *parent = nullptr);
+
+    //Initialization of the QLib7z
+    void initQLib7z();
+
+    //Extract the file from archive
+    void extractFile7z(QString,QString);
 
     //Get the ref and version of the customer
     bool getInfoFromDatabaseLocal();
@@ -47,6 +57,16 @@ public:
     //Delete the directory and the files
     bool deleteDirectory(QString);
 
+    //Create backup file
+    bool backupCurrentVersion();
+
+    //Update the new version
+    bool updateNewVersion();
+
+    //Copy files
+    bool copyFileToPath(QString,QString,bool);
+    bool copyDirectoryFiles(QString,QString,bool);
+
 signals:
 
 public slots:
@@ -58,6 +78,8 @@ public slots:
 
     void updatePushButtonClickedSlot();
     void exitPushButtonClickedSlot();
+
+    void decompressionFinishedSlot();
 
 private:
     QString m_sClientRef;
@@ -89,6 +111,11 @@ private:
 
     QString m_sDate;
     QString m_sDateFilePath;
+
+    //The file of 7z
+    Lib7z::File m_File7z;
+
+    Lib7z::ExtractItemJob m_Extractjob;
 };
 
 #endif // AUTOUPDATER_H

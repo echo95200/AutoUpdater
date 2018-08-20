@@ -36,3 +36,10 @@ FORMS += \
         mainwindow.ui
 
 RESOURCES +=
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/QLib7z-master/lib/release/ -lQLib7z
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/QLib7z-master/lib/debug/ -lQLib7z
+else:unix: LIBS += -L$$PWD/QLib7z-master/lib/ -lQLib7z
+
+INCLUDEPATH += $$PWD/QLib7z-master/include
+DEPENDPATH += $$PWD/QLib7z-master/include

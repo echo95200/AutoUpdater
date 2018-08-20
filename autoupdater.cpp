@@ -31,6 +31,7 @@ AutoUpdater::AutoUpdater(QWidget *parent) : QWidget(parent)
     }
 
     this->initDir();
+    this->initQLib7z();
 
     connect(m_pUpdatePushButton,SIGNAL(clicked(bool)),this,SLOT(updatePushButtonClickedSlot()));
     connect(m_pExitPushPutton,SIGNAL(clicked(bool)),this,SLOT(exitPushButtonClickedSlot()));
@@ -260,6 +261,10 @@ void AutoUpdater::replyFinishedSlot(QNetworkReply *)
 
         if (md5DownloadFile == m_sFileDownloadMD5) {
             m_pLabel->setText("Download the file successfully");
+            QString path7z = m_sVentapUPDPath + QDir::separator() + m_sFTPFileName;
+            QString targetPath = m_sVentapUPDPath;
+            this->extractFile7z(path7z,targetPath);
+
         } else {
             m_pLabel->setText("Filed to download the file!");
         }
@@ -279,6 +284,7 @@ void AutoUpdater::loadErrorSlot(QNetworkReply::NetworkError)
 //When the client clicked the button update
 void AutoUpdater::updatePushButtonClickedSlot()
 {
+    m_pUpdatePushButton->setEnabled(false);
     this->downloadPackage();
 }
 
@@ -309,7 +315,187 @@ bool AutoUpdater::deleteDirectory(QString path)
     return dir.rmpath(dir.absolutePath());
 }
 
+//Initialization of the QLib7z
+void AutoUpdater::initQLib7z()
+{
+    Lib7z::init();
+    m_File7z.path = "temp.7z";
+    m_File7z.permissions = 0;
+    m_File7z.compressedSize = 836;
+    m_File7z.uncompressedSize = 5242880;
+    m_File7z.isDirectory = false;
+    m_File7z.archiveIndex = QPoint(0,0);
+    m_File7z.mtime = QDateTime(QDate::fromJulianDay(2456413),QTime(12,50,42));
+}
 
+//Extract the file from archive
+void AutoUpdater::extractFile7z(QString file7zPath, QString targetPath)
+{
+    QFile file(file7zPath);
+    file.open(QIODevice::ReadWrite);
+    if (!Lib7z::isSupportedArchive(&file)) {
+        QMessageBox::about(NULL,"Error","Decompress file corruption!");
+        return;
+    }
+    //Lib7z::extractArchive(&file,targetPath);
+
+    //Lib7z::ExtractItemJob job;
+    m_Extractjob.setArchive(&file);
+    m_Extractjob.setTargetDirectory(targetPath);
+    m_Extractjob.start();
+    m_Extractjob.run();
+    connect(&m_Extractjob,SIGNAL(finished(Lib7z::Job*)),this,SLOT(decompressionFinishedSlot()));
+}
+
+//When the decompression is finished
+void AutoUpdater::decompressionFinishedSlot()
+{
+    //Delete the download file 7z
+    m_pFile->open(QIODevice::ReadWrite);
+    if (m_pFile->exists()) {
+        m_pFile->remove();
+    }
+
+    qDebug() << "Decompression is finished!";
+    if (backupCurrentVersion()) {
+        m_pLabel->setText("Backup the files successfully!");
+        qDebug() << "Backup the files successfully!";
+        if (updateNewVersion()) {
+            m_pLabel->setText("Update new version!");
+            qDebug() << "Update new version!";
+        }
+    }
+}
+
+//Create backup file
+bool AutoUpdater::backupCurrentVersion()
+{
+    bool flag = false;
+    // lib file
+    QString sourceDirLib = m_sVentapHomePath + QDir::separator() + "lib";
+    QString targetDirLib = m_sDateFilePath + QDir::separator() + "lib";
+    bool flagDir = copyDirectoryFiles(sourceDirLib,targetDirLib,true);
+
+    // plugins file
+    QString sourceDirPlugins = m_sVentapHomePath + QDir::separator() + "plugins";
+    QString targetDirPlugins = m_sDateFilePath + QDir::separator() + "plugins";
+    bool flagPlugins = copyDirectoryFiles(sourceDirPlugins,targetDirPlugins,true);
+
+    //VtMain
+    QString sourceVtMain = m_sVentapHomePath + QDir::separator() + "VtMain";
+    QString targetVtMain = m_sDateFilePath + QDir::separator() + "VtMain";
+    bool flagVtMain = copyFileToPath(sourceVtMain,targetVtMain,true);
+
+    if (flagDir && flagPlugins && flagVtMain) {
+
+        m_File7z.path = m_sDateFilePath + ".7z";
+        QFile file(m_File7z.path);
+        file.open(QIODevice::ReadWrite);
+        QStringList list;
+        list.append(m_sDateFilePath);
+        Lib7z::createArchive(&file,list);
+        if (Lib7z::isSupportedArchive(&file)) {
+            flag = true;
+        }
+    }
+
+    return flag;
+}
+
+//Update the new version
+bool AutoUpdater::updateNewVersion()
+{
+    bool flag = false;
+    QDir dir(m_sVentapUPDPath);
+    QFileInfoList fileList = dir.entryInfoList(QDir::Files | QDir::Hidden | QDir::NoSymLinks);
+    QFileInfoList folderList = dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    //If is a file and check the flag
+    bool flagFile = true;
+    qDebug() << fileList.size();
+    for (int i = 0; i < fileList.size(); i++) {
+        QString fileName = fileList.at(i).fileName();
+        QString path = fileList.at(i).absoluteFilePath();
+        QString targetDir = m_sVentapHomePath + QDir::separator() + fileName;
+        bool flag1 = copyFileToPath(path,targetDir,true);
+        flagFile = flagFile && flag1;
+    }
+
+    //If is a directory
+    bool flagFolder = true;
+    for (int i = 0; i < folderList.size(); i++) {
+        QString folderName = folderList.at(i).fileName();
+        QString path = folderList.at(i).absoluteFilePath();
+        QString targetDir = m_sVentapHomePath + QDir::separator() + folderName;
+        bool flag2 = copyDirectoryFiles(path,targetDir,true);
+        flagFolder = flagFolder && flag2;
+    }
+
+    flag = flagFile && flagFolder;
+    return flag;
+}
+
+//copy file to target path
+bool AutoUpdater::copyFileToPath(QString sourceDir, QString toDir, bool coverFileIfExist)
+{
+    toDir.replace("\\","/");
+    if (sourceDir == toDir) {
+        return true;
+    }
+    if (!QFile::exists(sourceDir)) {
+        return false;
+    }
+    QDir* createFile = new QDir;
+    bool exist = createFile->exists(toDir);
+    if (exist) {
+        if (coverFileIfExist) {
+            createFile->remove(toDir);
+        }
+    }
+
+    if (!QFile::copy(sourceDir,toDir)){
+        return false;
+    } else {
+        m_pLabel->setText("Copy " + sourceDir + " To " +  toDir);
+    }
+    return true;
+}
+
+// copy directory to target path
+bool AutoUpdater::copyDirectoryFiles(QString fromDir, QString toDir, bool coverFileIfExist)
+{
+    QDir sourceDir(fromDir);
+    QDir targetDir(toDir);
+    if (!targetDir.exists()) {
+        if (!targetDir.mkdir(targetDir.absolutePath()))
+            return false;
+    }
+
+    QFileInfoList fileInfoList = sourceDir.entryInfoList();
+    foreach (QFileInfo fileInfo, fileInfoList) {
+        if(fileInfo.fileName() == "." || fileInfo.fileName() == "..")
+            continue;
+        //If the file is an directory
+        if (fileInfo.isDir()){
+            if (!copyDirectoryFiles(fileInfo.filePath(),
+                                   targetDir.filePath(fileInfo.fileName()),
+                                   coverFileIfExist))
+                return false;
+        } else {
+            if (coverFileIfExist && targetDir.exists(fileInfo.fileName())){
+                targetDir.remove(fileInfo.fileName());
+            }
+
+            if (!QFile::copy(fileInfo.filePath(),
+                            targetDir.filePath(fileInfo.fileName()))){
+                return false;
+            } else {
+                m_pLabel->setText("Copy " + fileInfo.filePath() + " To " + targetDir.filePath(fileInfo.fileName()));
+            }
+        }
+    }
+    return true;
+}
 
 
 
