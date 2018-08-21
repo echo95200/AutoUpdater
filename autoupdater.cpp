@@ -303,7 +303,7 @@ bool AutoUpdater::deleteDirectory(QString path)
     if (!dir.exists())
         return true;
 
-    dir.setFilter(QDir::AllEntries | QDir::NoDotAndDotDot);
+    dir.setFilter(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden);
     QFileInfoList fileList = dir.entryInfoList();
     foreach (QFileInfo fi, fileList) {
         if (fi.isFile()) {
@@ -337,7 +337,6 @@ void AutoUpdater::extractFile7z(QString file7zPath, QString targetPath)
         QMessageBox::about(NULL,"Error","Decompress file corruption!");
         return;
     }
-    //Lib7z::extractArchive(&file,targetPath);
 
     //Lib7z::ExtractItemJob job;
     m_Extractjob.setArchive(&file);
@@ -412,7 +411,6 @@ bool AutoUpdater::updateNewVersion()
 
     //If is a file and check the flag
     bool flagFile = true;
-    qDebug() << fileList.size();
     for (int i = 0; i < fileList.size(); i++) {
         QString fileName = fileList.at(i).fileName();
         QString path = fileList.at(i).absoluteFilePath();
